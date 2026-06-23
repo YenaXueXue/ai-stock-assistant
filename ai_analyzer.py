@@ -5,33 +5,14 @@ import random
 import re
 from openai import OpenAI
 from dotenv import load_dotenv
-import streamlit as st  # 新增：用于读取 Streamlit Cloud 的 Secrets
 
-load_dotenv()  # 本地开发时从 .env 读取
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 
-# 1. 优先从环境变量读取（本地 .env 或系统环境变量）
 API_KEY = os.environ.get("DEEPSEEK_API_KEY")
-
-# 2. 如果环境变量没有，尝试从 st.secrets 读取（Streamlit Cloud 部署时）
 if not API_KEY:
-    try:
-        API_KEY = st.secrets["DEEPSEEK_API_KEY"]
-    except Exception:
-        pass
-
-# 3. 如果仍然没有，抛出友好错误
-if not API_KEY:
-    raise ValueError(
-        "未找到 DEEPSEEK_API_KEY。请在本地创建 .env 文件，或在 Streamlit Cloud 的 Secrets 中配置。"
-    )
-
-# 初始化客户端
-client = OpenAI(
-    api_key=API_KEY,
-    base_url="https://api.deepseek.com"
-)
+    raise ValueError("请在 .env 文件中设置 DEEPSEEK_API_KEY")
 
 client = OpenAI(
     api_key=API_KEY,
@@ -91,12 +72,12 @@ def generate_mock_analysis(stock_text: str, expert_name: str = "专家"):
         health = "关注自由现金流和负债率"
         risk_detail = "公司层面：护城河宽度判断；行业层面：行业变革风险；市场层面：系统性风险"
 
-    elif "格林布拉特" in expert_name:
-        summary = f"{stock_name}的ROIC和PE排名数据缺失，无法计算魔法公式综合得分。魔法公式核心是「以合理价格买入优质公司」，需补充ROIC和PE数据后重新排名评估。"
-        valuation = "需计算PE排名（低PE得分高）"
-        growth = "ROIC是核心指标（高ROIC得分高）"
-        health = "资本回报率数据待核实"
-        risk_detail = "公司层面：ROIC波动风险；行业层面：行业周期影响；市场层面：估值波动风险"
+    elif "惠特尼·乔治" in expert_name or "惠特尼" in expert_name:
+        summary = f"{stock_name}当前PE={pe}，PB={pb}。惠特尼·乔治深度价值标准要求PB<0.8、股息率>4%、安全边际>40%。当前PB={pb}，需判断是否低于0.8门槛；股息率和隐蔽资产数据待核实。建议核查资产负债表中的隐蔽资产（土地、股权投资、品牌价值）及公司是否处于困境反转阶段。"
+        valuation = f"PB={pb}，需判断是否<0.8（深度价值核心门槛）"
+        growth = "深度价值策略更关注资产质量和股息，而非高成长"
+        health = "需核查：流动比率(>2)、长期负债率(<40%)、自由现金流覆盖率"
+        risk_detail = "公司层面：资产质量风险、股息可持续性；行业层面：行业周期底部风险；市场层面：价值陷阱风险（需区分低估值与真价值）"
 
     else:
         valuation_rand = random.choice(["偏高", "合理", "偏低"])
@@ -150,7 +131,7 @@ def extract_expert_info(skill_content: str):
                 if len(candidate) > 1 and not candidate.startswith('该'):
                     expert_name = candidate
                     break
-            full_name_match = re.search(r'([本彼乔沃][\u4e00-\u9fa5]{1,3}·[\u4e00-\u9fa5]{1,3})', line)
+            full_name_match = re.search(r'([本彼乔威惠][\u4e00-\u9fa5]{1,3}·[\u4e00-\u9fa5]{1,3})', line)
             if full_name_match:
                 expert_name = full_name_match.group(1)
                 break
@@ -162,8 +143,8 @@ def extract_expert_info(skill_content: str):
         keywords = ["CAN SLIM", "当期收益(C)", "年度收益(A)", "龙头股(L)", "机构认同(I)"]
     elif any(k in skill_content for k in ['PEG', '彼得·林奇', '公司分类', '六类避而不买']):
         keywords = ["PEG估值", "公司分类", "增长型", "六类避而不买"]
-    elif any(k in skill_content for k in ['魔法公式', '格林布拉特', 'ROIC']):
-        keywords = ["魔法公式", "高ROIC", "低PE", "收益率排名"]
+    elif any(k in skill_content for k in ['深度价值', '惠特尼·乔治', '低估值', '高股息', '隐蔽资产']):
+        keywords = ["深度价值", "低PB(<0.8)", "高股息(>4%)", "隐蔽资产", "安全边际(>40%)"]
     elif any(k in skill_content for k in ['护城河', '巴菲特', 'ROE']):
         keywords = ["护城河", "长期持有", "ROE", "合理价格"]
     else:
