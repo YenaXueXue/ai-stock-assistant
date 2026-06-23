@@ -5,14 +5,33 @@ import random
 import re
 from openai import OpenAI
 from dotenv import load_dotenv
+import streamlit as st  # 新增：用于读取 Streamlit Cloud 的 Secrets
 
-load_dotenv()
+load_dotenv()  # 本地开发时从 .env 读取
 
 logging.basicConfig(level=logging.INFO)
 
+# 1. 优先从环境变量读取（本地 .env 或系统环境变量）
 API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+
+# 2. 如果环境变量没有，尝试从 st.secrets 读取（Streamlit Cloud 部署时）
 if not API_KEY:
-    raise ValueError("请在 .env 文件中设置 DEEPSEEK_API_KEY")
+    try:
+        API_KEY = st.secrets["DEEPSEEK_API_KEY"]
+    except Exception:
+        pass
+
+# 3. 如果仍然没有，抛出友好错误
+if not API_KEY:
+    raise ValueError(
+        "未找到 DEEPSEEK_API_KEY。请在本地创建 .env 文件，或在 Streamlit Cloud 的 Secrets 中配置。"
+    )
+
+# 初始化客户端
+client = OpenAI(
+    api_key=API_KEY,
+    base_url="https://api.deepseek.com"
+)
 
 client = OpenAI(
     api_key=API_KEY,
